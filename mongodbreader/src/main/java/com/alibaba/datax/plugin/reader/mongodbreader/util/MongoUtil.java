@@ -5,6 +5,7 @@ import com.alibaba.datax.common.util.Configuration;
 import com.alibaba.datax.plugin.reader.mongodbreader.KeyConstant;
 import com.alibaba.datax.plugin.reader.mongodbreader.MongoDBReaderErrorCode;
 import com.mongodb.MongoClient;
+import com.mongodb.MongoClientOptions;
 import com.mongodb.MongoCredential;
 import com.mongodb.ServerAddress;
 
@@ -40,7 +41,10 @@ public class MongoUtil {
         }
         try {
             MongoCredential credential = MongoCredential.createCredential(userName, database, password.toCharArray());
-            return new MongoClient(parseServerAddress(addressList), Arrays.asList(credential));
+            MongoClientOptions options = 
+            		MongoClientOptions.builder().maxWaitTime(1000 * 60 * 2) 
+            		.connectionsPerHost(500).build(); 
+            return new MongoClient(parseServerAddress(addressList), Arrays.asList(credential),options);
 
         } catch (UnknownHostException e) {
             throw DataXException.asDataXException(MongoDBReaderErrorCode.ILLEGAL_ADDRESS,"不合法的地址");

@@ -17,7 +17,9 @@ import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import org.bson.BsonDocument;
 import org.bson.BsonInt32;
+import org.bson.BsonObjectId;
 import org.bson.Document;
+import org.bson.types.ObjectId;
 
 import java.util.*;
 
@@ -98,6 +100,16 @@ public class MongoDBReader extends Reader {
 
             long pageCount = batchSize / pageSize;
             int modCount = (int)(batchSize % pageSize);
+            ObjectId lastObjectId = null;           // 最后一次的读取数据的ObjectId
+
+            BsonDocument queryObj = null;
+            if (!Strings.isNullOrEmpty(query)) {
+                // 有query的情况
+                queryObj = BsonDocument.parse(query);
+            } else {
+                // findAll情况
+                queryObj = new BsonDocument();
+            }
 
             for(int i = 0; i <= pageCount; i++) {
                 if(modCount == 0 && i == pageCount) {
@@ -107,21 +119,39 @@ public class MongoDBReader extends Reader {
                     pageSize = modCount;
                 }
                 MongoCursor<Document> dbCursor = null;
-                if(!Strings.isNullOrEmpty(query)) {
-                    dbCursor = col.find(BsonDocument.parse(query)).sort(sort)
-                            .skip(skipCount.intValue()).limit(pageSize).iterator();
+
+                // https://github.com/alibaba/DataX/issues/200
+                // 先根据_id做排序，记录最后次读取到的ObjectId，做gt查询，不用skip。
+                if (lastObjectId != null) {
+                    queryObj.put(KeyConstant.MONGO_PRIMIARY_ID_META, new BsonDocument("$gt", new BsonObjectId(lastObjectId)));
+                    dbCursor = col.find(queryObj).sort(sort).limit(pageSize).iterator();
                 } else {
-                    dbCursor = col.find().sort(sort)
-                            .skip(skipCount.intValue()).limit(pageSize).iterator();
+                    // 跳过设定的初始skip
+                    if (queryObj.size() > 0) {
+                        dbCursor = col.find(queryObj).sort(sort).skip(skipCount.intValue()).limit(pageSize).iterator();
+                    } else {
+                        // 默认没有query
+                        dbCursor = col.find().sort(sort).skip(skipCount.intValue()).limit(pageSize).iterator();
+                    }
                 }
+
                 while (dbCursor.hasNext()) {
                     Document item = dbCursor.next();
                     Record record = recordSender.createRecord();
                     Iterator columnItera = mongodbColumnMeta.iterator();
+                    try {
+                    	lastObjectId = item.getObjectId(KeyConstant.MONGO_PRIMIARY_ID_META);        // 读取的最后条记录的ObjectId
+
+                    }catch (Exception e) {
+						// TODO: handle exception
+                    	continue;
+
+					}
                     while (columnItera.hasNext()) {
                         JSONObject column = (JSONObject)columnItera.next();
                         Object tempCol = item.get(column.getString(KeyConstant.COLUMN_NAME));
                         if (tempCol == null) {
+                            record.addColumn(new StringColumn(""));
                             continue;
                         }
                         if (tempCol instanceof Double) {
