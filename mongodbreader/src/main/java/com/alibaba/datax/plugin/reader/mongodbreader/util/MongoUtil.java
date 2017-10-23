@@ -43,7 +43,7 @@ public class MongoUtil {
             MongoCredential credential = MongoCredential.createCredential(userName, database, password.toCharArray());
             MongoClientOptions options = 
             		MongoClientOptions.builder().maxWaitTime(1000 * 60 * 2) 
-            		.connectionsPerHost(500).build(); 
+            		.connectionsPerHost(500).build(); //添加最大等待时间与连接数
             return new MongoClient(parseServerAddress(addressList), Arrays.asList(credential),options);
 
         } catch (UnknownHostException e) {

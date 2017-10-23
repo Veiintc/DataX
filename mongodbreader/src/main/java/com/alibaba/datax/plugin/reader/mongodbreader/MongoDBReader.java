@@ -144,7 +144,7 @@ public class MongoDBReader extends Reader {
 
                     }catch (Exception e) {
 						// TODO: handle exception
-                    	continue;
+                    	continue;																	//过滤脏数据
 
 					}
                     while (columnItera.hasNext()) {
