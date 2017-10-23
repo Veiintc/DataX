@@ -120,7 +120,7 @@ public class MongoDBReader extends Reader {
                 }
                 MongoCursor<Document> dbCursor = null;
 
-                // https://github.com/alibaba/DataX/issues/200
+                // 根据 https://github.com/alibaba/DataX/issues/200 提供代码修改
                 // 先根据_id做排序，记录最后次读取到的ObjectId，做gt查询，不用skip。
                 if (lastObjectId != null) {
                     queryObj.put(KeyConstant.MONGO_PRIMIARY_ID_META, new BsonDocument("$gt", new BsonObjectId(lastObjectId)));
